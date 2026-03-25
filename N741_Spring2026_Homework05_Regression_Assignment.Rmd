@@ -1,7 +1,8 @@
 ---
-title: "NRSG 741 - Homework 4 - Linear Regression - ASSIGNMENT"
-author: "Melinda Higgins"
-date: "03/16/2025"
+title: "NRSG 741 - Homework 5 - Linear and Logistic Regression"
+subtitle: "Spring 2026 - ASSIGNMENT"
+author: "Melinda Higgins and Madelyn Houser"
+date: "03/25/2025"
 output: 
   html_document:
     toc: true
@@ -19,17 +20,34 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(error = TRUE)
+```
 
+## Linear Regression
+### EXAMPLE Analysis of **Gentoo** penguins
+
+Let's load the Penguins data from the `palmerpenguins` package. Go ahead and also load the `dplyr` and `ggplot2` packages as well. Other packages are also loaded in the R chunks below as needed.
+
+R Packages Used for this Example on Linear and Logistic Regression:
+
+* `palmerpenguins`
+* `dplyr`
+* `ggplot2`
+* `easystats`
+* `gtsummary`
+* `car`
+* `broom`
+* `olsrr`
+* `ROCR`
+* `DescTools`
+
+```{r packages}
 # load packages needed
 library(dplyr)
 library(palmerpenguins)
 library(ggplot2)
 ```
 
-## Linear Regression
-### HOMEWORK ASSIGNMENT - Analysis of **Chinstrap** penguins
-
-Let's load the Penguins data. For this homework ASSIGNMENT, let's pull out the data for the **Chinstrap** penguins, and we'll remove the `NA`'s here at the beginning for the penguins with missing body size measurements.
+For this homework ASSIGNMENT, let's pull out the data for the **Chinstrap** penguins, and we'll remove the `NA`'s here at the beginning for the penguins with missing body size measurements.
 
 ```{r}
 pg1 <- penguins %>%
@@ -367,3 +385,246 @@ ANSWER TO QUESTION 11 HERE:
 
 
 =========================================
+
+
+## Logistic Regression
+### EXAMPLE Analysis of **Adelie** penguins
+
+Let's load the Penguins data. For this homework ASSIGNMENT, let's pull out the data for the **Adelie** penguins. 
+
+Let's use logistic regression to see how well using these same 3 dimensional measurements (bill depth, bill and flipper length measurements) differentiates the male and female penguins.
+
+NOTE: We need to do a filter here since there are penguins missing biological sex. So, let's re-select the data and remove all NAs including those for `sex` to have a complete dataset before we fit the models. It is **important** to remove the NAs now, since they will cause errors for some of the later prediction functions.
+
+```{r}
+pg2 <- penguins %>%
+  select(species, sex, bill_depth_mm,
+         bill_length_mm, flipper_length_mm) %>%
+  filter(species == "Adelie") %>%
+  filter(complete.cases(.))
+```
+
+### Get Summary Statistics for Males vs Females
+
+Similar to performing bivariate analyses of each potential predictor with the outcome for a linear regression, to evaluate potential predictors for a logistic regression model it is useful to run t-tests for continuous predictors (or chi-square tests for any categorical predictors) for the 2 categories for the logistic regression outcome (male vs female biological sex for the penguins in this example).
+
+I added custom output below and ran a two-sample t-test using equal variance assumption for the 2-group tests below. Notice that all of the tests are significant with the Males having much larger dimensions than the Females.
+
+```{r}
+library(gtsummary)
+
+pg2 %>%
+  tbl_summary(
+    by = sex,
+    include = c(bill_depth_mm,
+                bill_length_mm, 
+                flipper_length_mm),
+    type = all_continuous() ~ "continuous2",
+    statistic = list(
+      all_continuous() ~ c(
+        "{mean} ({sd})",
+        "{median} ({p25}, {p75})",
+        "[{min} - {max}]"
+        )
+      ),
+    digits = all_continuous() ~ 2
+    ) %>%
+  add_p(
+    test = everything() ~ "t.test",
+    test.args = all_tests("t.test") ~ list(var.equal = TRUE)
+  )
+```
+
+====================================
+
+QUESTION 12: What do you notice about these 3 dimensional measurements relative to the differences between the Males and Female Adelie penguins?
+
+ANSWER FOR QUESTION 12 HERE:
+
+
+
+====================================
+
+### Fit Logistic Regression Model
+
+We will fit the logistic regression model using the `glm()` function. This is pretty much the same syntax as we used above for `lm()` but we need to remember to set `family = binomial` otherwise the default is `family = gaussian` which is essentially running a linear (normal) regression model.
+
+NOTE: `sex` here is a factor variable where 1=Female and 2=Male, so they are put in order, so the model is predicting Males and using Females as the reference category.
+
+```{r}
+glm1 <- glm(sex ~ bill_depth_mm +
+              bill_length_mm + flipper_length_mm,
+            family = binomial,
+            data = pg2)
+```
+
+### View Model Coefficients (Odds Ratios) and Tests
+
+We can again use the `tbl_regression()` function from the `gtsummary` package to get a nice table for the model. It is **important** to remember to set `exponentiate = TRUE` to get the odds ratios instead of the original raw betas.
+
+You'll also notice that I added `add_glance_source_note()` which adds some of the model fit statistics such as the AIC, BIC and other deviance statistics and sample size.
+
+```{r}
+gtsummary::tbl_regression(glm1,
+                          exponentiate = TRUE) %>%
+  add_glance_source_note()
+```
+
+====================================
+
+QUESTION 13: Based on the model table above, which variable has the highest odds ratio? and what was the final sample size used to fit the model? Are any of the variables not significant in the model?
+
+ANSWER FOR QUESTION 13 HERE:
+
+
+
+====================================
+
+### Logistic Regression Model Predictions - Confusion Matrix
+
+In linear regression we computed the "fitted" (or "predicted" values) from the model and compared them back to the original values to get an idea of how well the model did in predicting the original data. 
+
+We can do the same thing with a logistic regression model. However, it is important to remember that the "original" outcome data for logistic regression is binary and is often coded using a number like 0 versus 1, but could also be a category like "apple" versus "oranges". So, the logistic regression model actually predicts the probability for each outcome category, i.e., the probability for predicting a "1" or probability of predicting a "0". 
+
+Let's look at the predicted probabilities from this model. We can use the `broom::augment()` function, but we need to add `type.predict = "response"` to get the probabilities in the `.fitted` variable.
+
+Learn more at [https://broom.tidymodels.org/reference/augment.glm.html](https://broom.tidymodels.org/reference/augment.glm.html).
+
+```{r}
+library(broom)
+aglm1 <- augment(glm1,
+                 type.predict="response")
+```
+
+Look at the top of this augmented output dataset.
+
+```{r}
+head(aglm1)
+```
+
+Notice that the 1st penguin is a male and the probability is `r aglm1$.fitted[1]` which is above 0.5. 
+
+The second penguin is a female and their probability was `r aglm1$.fitted[2]` which is well below 0.5.
+
+Let's use a simple cutscore of 0.5 and classify all penguins with a probability (`.fitted`) > 0.5 as "males" and those with probabilities (`.fitted`) <= 0.5 to be "females".
+
+```{r}
+aglm1 <- aglm1 %>%
+  mutate(predictedsex = ifelse(
+    .fitted > 0.5, "predicted male",
+    "predicted female"
+  ))
+```
+
+Let's look at the table of original sex (in the columns) compared to the sex predicted by the model (in the rows). 
+
+This table is the "confusion matrix".
+
+```{r}
+# make the confusion matrix
+aglm1 %>%
+  with(table(predictedsex, sex))
+```
+
+====================================
+
+QUESTION 14: Using the output from the table above, compute the following: overall correct classification rate; False Negatives (Predicted females that were actually males) percentage; and False Positives (Predicted males that were actually females) percentage
+
+ANSWER FOR QUESTION 14 HERE:
+
+* overall correct classification rate = ???? 
+* False Negatives (Predicted females that were actually males) percentage = ????
+* False Positives (Predicted males that were actually females) percentage = ????
+
+
+====================================
+
+HINT: Use this website for computing "contingency tables" [https://statpages.info/ctab2x2.html](https://statpages.info/ctab2x2.html). Treat the "positive or present" category as the one the logistic regression model is predicting - in this case the "males" are the "present" or "positive" category.
+
+
+### Logistic Regression Model Fit Statistics - AUC
+
+One of the best model fit statistics to report for a logistic regression is to compute the AUC - area under the curve - for the ROC - receiver operating characteristic curve - which looks at the classification trade-off between false positives and false negatives on how well the model does in making predictions - this is similar to R2 for linear regression.
+
+Ideally we want the AUC > 0.7 at a minimum, and AUC > 0.8 is good and AUC > 0.9 is very good.
+
+```{r}
+# Also compute the AUC and
+# plot an ROC
+library(ROCR)
+p <- predict(glm1, newdata=pg2, 
+             type="response")
+pr <- ROCR::prediction(p, as.numeric(pg2$sex))
+prf <- ROCR::performance(pr, measure = "tpr", 
+                         x.measure = "fpr")
+#plot(prf)
+#abline(0, 1, col = "red")
+
+# compute AUC, area under the curve
+# also called the C-statistic
+auc <- ROCR::performance(pr, measure = "auc")
+auc <- auc@y.values[[1]]
+#auc
+
+# ideally you want AUC as close to 1 as possible
+# AUC > 0.9 is great
+# AUC > 0.8 is good
+# AUC > 0.7 is ok
+# AUC < 0.7 are not very good
+# AUC around 0.5 is no better than flipping a fair coin
+# which is a useless model
+
+# also - add title to plot with AUC in title
+plot(prf,
+     main = paste("ROC Curve, AUC = ", round(auc, 3)))
+abline(0, 1, col="red")
+```
+
+====================================
+
+QUESTION 15: What is the AUC for this model? Is this a good model or not?
+
+ANSWER FOR QUESTION 15 HERE:
+
+
+
+====================================
+
+### Pseudo-R2 values
+
+Let's also take a look at the pseudo-R2 values from a logistic regression using the `DescTools` package and the 
+
+Learn more at [https://andrisignorell.github.io/DescTools/reference/PseudoR2.html](https://andrisignorell.github.io/DescTools/reference/PseudoR2.html).
+
+From `help("PseudoR2", package = "DescTools")`
+
+>Although there's no commonly accepted agreement on how to assess the fit of a logistic regression, there are some approaches. The goodness of fit of the logistic regression model can be expressed by some variants of pseudo R squared statistics, most of which being based on the deviance of the model.
+
+Details:
+
+* Cox and Snell's R2 is based on the log likelihood for the model compared to the log likelihood for a baseline model. However, with categorical outcomes, it has a theoretical maximum value of less than 1, even for a "perfect" model.
+
+* Nagelkerke's R2 (also sometimes called Cragg-Uhler) is an adjusted version of the Cox and Snell's R2 that adjusts the scale of the statistic to cover the full range from 0 to 1.
+
+* McFadden's R2 is another version, based on the log-likelihood kernels for the intercept-only model and the full estimated model.
+
+* Veall and Zimmermann concluded that from a set of six widely used measures the measure suggested by McKelvey and Zavoina had the closest correspondence to ordinary least square R2. The Aldrich-Nelson pseudo-R2 with the Veall-Zimmermann correction is the best approximation of the McKelvey-Zavoina pseudo-R2. Efron, Aldrich-Nelson, McFadden and Nagelkerke approaches severely underestimate the "true R2".
+
+```{r}
+library(DescTools)
+
+PseudoR2(glm1,
+         which = "all")
+```
+
+====================================
+
+QUESTION 16: Given the pseudo-R2 values, approximately how much variance in the outcome is explained by the model?
+
+ANSWER FOR QUESTION 16 HERE:
+
+
+
+====================================
+
+
