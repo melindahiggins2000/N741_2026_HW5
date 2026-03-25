@@ -23,7 +23,7 @@ knitr::opts_chunk$set(error = TRUE)
 ```
 
 ## Linear Regression
-### EXAMPLE Analysis of **Gentoo** penguins
+### EXAMPLE Analysis of **Chinstrap** penguins
 
 Let's load the Penguins data from the `palmerpenguins` package. Go ahead and also load the `dplyr` and `ggplot2` packages as well. Other packages are also loaded in the R chunks below as needed.
 
