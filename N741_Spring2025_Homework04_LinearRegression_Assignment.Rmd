@@ -1,0 +1,369 @@
+---
+title: "NRSG 741 - Homework 4 - Linear Regression - ASSIGNMENT"
+author: "Melinda Higgins"
+date: "03/16/2025"
+output: 
+  html_document:
+    toc: true
+    toc_float: true
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r setup, include=FALSE}
+# DO NOT EDIT THIS CHUNK
+# set up chunk output options
+# set to FALSE to clean up final output
+# leave TRUE to help with debugging initially
+knitr::opts_chunk$set(echo = TRUE)
+knitr::opts_chunk$set(warning = FALSE)
+knitr::opts_chunk$set(message = FALSE)
+knitr::opts_chunk$set(error = TRUE)
+
+# load packages needed
+library(dplyr)
+library(palmerpenguins)
+library(ggplot2)
+```
+
+## Linear Regression
+### HOMEWORK ASSIGNMENT - Analysis of **Chinstrap** penguins
+
+Let's load the Penguins data. For this homework ASSIGNMENT, let's pull out the data for the **Chinstrap** penguins, and we'll remove the `NA`'s here at the beginning for the penguins with missing body size measurements.
+
+```{r}
+pg1 <- penguins %>%
+  select(species, body_mass_g, bill_depth_mm,
+         bill_length_mm, flipper_length_mm) %>%
+  filter(species == "Chinstrap") %>%
+  filter(complete.cases(.))
+```
+
+### Bivariate Correlations
+
+Before we build the regression model, let's take a moment and look at the bivariate correlations between body mass and the body dimensions for bill depth and bill and flipper length. We'll put body mass in the 1st column since this is the variable we'll focus on for the linear regression.
+
+```{r}
+library(easystats)
+pg1 %>%
+  select(body_mass_g, bill_depth_mm,
+         bill_length_mm, flipper_length_mm) %>%
+  correlation() %>%
+  summary(redundant = TRUE) %>%
+  display()
+```
+
+=========================================
+
+HOMEWORK QUESTION #1: What do you notice about the correlations of bill depth, bill length and flipper length with body mass? Are these smaller or larger here for the Chinstrap penguins than what we saw in the EXAMPLE template report for the Gentoo penguins?
+
+ANSWER TO QUESTION 1 HERE:
+
+
+
+=========================================
+
+### Fit Model for `body_mass_g` from other 3 dimensional measurements
+
+NOTE: Since we are focusing for this example on model interpretation, let's fit the model to all available data. _**For now, we will not split the data into a training and testing datasets.**_
+
+Let's fit the `lm` linear model.
+
+```{r}
+lm1 <- lm(body_mass_g ~ bill_depth_mm +
+            bill_length_mm + flipper_length_mm,
+          data = pg1)
+```
+
+### View Model Results
+
+To view and format the model results in a nice table format, let's use the `gtsummary` package and the `tbl_regression()` function. I have also added some other formatting features from the package. To learn more, see [https://www.danieldsjoberg.com/gtsummary/articles/tbl_regression.html](https://www.danieldsjoberg.com/gtsummary/articles/tbl_regression.html).
+
+NOTE: `add_glance_source_note()` function comes from the `broom::glance()` function from the `broom` package which is loaded with `gtsummary`. See [https://www.danieldsjoberg.com/gtsummary/articles/tbl_regression.html#gtsummary-functions-to-add-information](https://www.danieldsjoberg.com/gtsummary/articles/tbl_regression.html#gtsummary-functions-to-add-information).
+
+```{r}
+library(gtsummary)
+
+lm1 %>%
+  tbl_regression(
+    estimate_fun = ~ style_number(.x, digits = 2)
+      ) %>%
+  add_glance_source_note(
+    include = c(r.squared, adj.r.squared)
+  )
+```
+
+=========================================
+
+HOMEWORK QUESTION #2: What do you notice about the fit of this model (R2 and Adjusted R2) here for the Chinstrap penguins body mass model than what we saw in the EXAMPLE template report for the Gentoo penguins?
+
+ANSWER TO QUESTION 2 HERE:
+
+
+
+=========================================
+
+
+### Check Normality of Residuals - histogram and QQplot
+
+One of the assumptions of linear regression is that the residuals should be normally distributed. So, let's make a histogram of the residuals to look for any non-normal tendencies like skewness and let's also look for any non-linear trends or outliers with the normal probability plot - the QQ plot.
+
+Look at the QQ plot - do you notice any potential outliers? If so, what are their numbers?
+
+```{r}
+# histogram of the residuals
+hist(lm1$residuals)
+
+# get QQ plot of residuals
+# the normal probability plot
+library(car)
+car::qqPlot(lm1)
+```
+
+=========================================
+
+HOMEWORK QUESTION #3: From the Histogram and QQ plot, do the residuals look normally distributed and do you notice any outliers - be sure to look at both low and high values? If so, which cases?
+
+ANSWER TO QUESTION 3 HERE:
+
+
+
+=========================================
+
+
+### Residual Plots & Tukey's test for nonadditivity
+
+In the `car` package, we can also use the `residualPlots()` function to look for any non-linear trends in the plots of the residuals against each predictor. We are looking for anything that deviates from Y=0 a horizontal line through 0. Look for any lines that trend up or down over the range of the predictor. Also look for any curvature in the lines.
+
+After the plots, a table is produced showing the Tukey's test for nonadditivity. If the test is significant (p<.05) for any given predictor, then that predictor may not meet the assumption of a linear relationship to the outcome variable - in other words, you may need to make this predictor variable quadratic or higher order like $X^2$ or $X^3$.
+
+Review the reported test statistics and look at the plots - do any variables have significant p-value or show significant curvature in the plot?
+
+Learn more in the BOOK: "Companion for Applied Regression" by John Fox (who also wrote the `car` package for R), see Chapter 6 [https://us.sagepub.com/sites/default/files/upm-binaries/38503_Chapter6.pdf](https://us.sagepub.com/sites/default/files/upm-binaries/38503_Chapter6.pdf).
+
+```{r}
+# diagnostics for the first model 
+# with 3 independent variables
+# function from car package
+car::residualPlots(lm1)
+```
+
+=========================================
+
+HOMEWORK QUESTION #4: From these residual plots, do any of the variables show significant curvature? remember to look at the table of statistics for each variable for the curvature tests.
+
+ANSWER TO QUESTION 4 HERE:
+
+
+
+=========================================
+
+### Use `broom` package to review other model output
+
+Next we can use the `broom` package [https://broom.tidymodels.org/](https://broom.tidymodels.org/), which is useful for looking at model effects, predictions and residuals and other related statistics and fit metrics.
+
+We're going to use the `augment()` function to pull out the `.fitted` variable for the predicted values from the model. Then we're going to compare the predicted values to the original values.
+
+```{r}
+library(broom)
+alm1 <- augment(lm1)
+```
+
+### Review fitted values (e.g. value predicted by model)
+
+Before we make the plot, let's also look at the summary statistics (mean (SD) and the min and max) and compare the original values and the model `.fitted` values.
+
+What do you notice?
+
+* Look at the means
+* Also look at the standard deviation of the `.fitted` values for the original data versus the `.fitted` values
+* And compare the min - max range of the `.fitted` values to the original values.
+
+```{r}
+alm1 %>%
+  select(body_mass_g, .fitted) %>%
+  tbl_summary(statistic = list(
+      all_continuous() ~ "{mean} ({sd}); [{min} - {max}]"
+    ),
+    digits = all_continuous() ~ 2,) %>%
+  modify_footnote(
+    all_stat_cols() ~ "Mean (SD) [min - max]"
+  )
+```
+
+=========================================
+
+HOMEWORK QUESTION #5: From these descriptive statistics comparing the original body mass values and the predicted values from the model, how well do the values line up?
+
+ANSWER TO QUESTION 5 HERE:
+
+
+
+=========================================
+
+
+### Plot of Model Predictions vs Original Values
+
+Note: To see how well the values match up, be sure to plot the x and y axis on same limits and add Y=X reference line. So, what do you see - how good are the predictions?
+
+```{r}
+# find min and max of original body_mass_g
+# and .fitted values
+lower <- min(alm1$body_mass_g, alm1$.fitted)
+upper <- max(alm1$body_mass_g, alm1$.fitted)
+
+ggplot(alm1,
+       aes(x = body_mass_g,
+           y = .fitted)) +
+  geom_point() +
+  geom_abline(intercept = 0, slope = 1,
+              color = "red") +
+  xlim(lower, upper) +
+  ylim(lower, upper) +
+  xlab("Original Body Mass (g)") +
+  ylab("Model Predicted Body Mass (g)") +
+  ggtitle("Regression Diagnostic Plot - Fitted vs Original")
+```
+
+=========================================
+
+HOMEWORK QUESTION #6: From the plot above, how well do you think the model is doing in predicting body mass for the Chinstrap penguins?
+
+ANSWER TO QUESTION 6 HERE:
+
+
+
+=========================================
+
+### Added Variable Plots
+
+Another helpful set of diagnostic plots are looking at the added variable plots. Each of these plots looks at how well the given variable is correlated with (predicts) the outcome after adjusting for the other variables already included in the model. 
+
+Look at the plots and see if any show a horizontal line indicating no "added information" for that variable. Also see if any potential outliers are highlighted.
+
+```{r}
+car::avPlots(lm1)
+```
+
+=========================================
+
+HOMEWORK QUESTION #7: Based on the added variable plots above, do you think any predictor variables should be removed from the model?
+
+ANSWER TO QUESTION 7 HERE:
+
+
+
+=========================================
+
+
+### Outlier Tests
+
+If we want to identify outliers in the dataset, we can run the `car::outlierTest()` function to find sample cases in the dataset that might be an unusual case which may be affecting the model fit.
+
+From the output below, look for any adjusted Bonferroni p-values < 0.05.
+
+```{r}
+#run Bonferroni test for outliers
+car::outlierTest(lm1)
+```
+
+=========================================
+
+HOMEWORK QUESTION #8: Based on the outlier test above, are any cases identified as a possible outlier? (look at the Bonferroni p-values)
+
+ANSWER TO QUESTION 8 HERE:
+
+
+
+=========================================
+
+### Influence Index Plots
+
+We can also look at other plots looking for cases that may be outliers or may have extra influence on the final fit of the model. The following "Influence Index Plots" shows plots for:
+
+* Cooks D distances
+* Studentized Residuals
+* Bonferroni p-values
+* and "hat" values
+
+See Section 6.3 for "Unusual Data" in Chapter 6 [https://us.sagepub.com/sites/default/files/upm-binaries/38503_Chapter6.pdf](https://us.sagepub.com/sites/default/files/upm-binaries/38503_Chapter6.pdf) of the Companion for Applied Regression BOOK.
+
+```{r}
+#identify highly influential points
+influenceIndexPlot(lm1)
+```
+
+### Influence Plot
+
+Another kind of influence plot looks at the points that may both be outliers and also have extra influence on the fit of the model (looking at Studentized Residuals against the Hat-values). 
+
+To learn more, see Figure 6.6 in [https://us.sagepub.com/sites/default/files/upm-binaries/38503_Chapter6.pdf](https://us.sagepub.com/sites/default/files/upm-binaries/38503_Chapter6.pdf).
+
+```{r}
+#make influence plot
+influencePlot(lm1)
+```
+
+=========================================
+
+HOMEWORK QUESTION #9: Based on the 2 plots above, do any cases show up as possible outliers and/or as having extra influence or leverage on the fit of the model?
+
+ANSWER TO QUESTION 9 HERE:
+
+
+
+=========================================
+
+### Test for Heteroskedasticity (equal variance assumption)
+
+Another assumption of linear regression is that the variance in the outcome is equal across all levels of the predictors. One way to check this is to run the test for heteroskedasticity.
+
+We are looking for a non-significant p-value so we cannot reject the assumption of equal variance. Was the test significant or not?
+
+```{r}
+# test for heteroskedasticity
+ncvTest(lm1)
+```
+
+=========================================
+
+HOMEWORK QUESTION #10: Based on the test for heteroskedasticity above, is this assumption met?
+
+ANSWER TO QUESTION 10 HERE: 
+
+
+
+=========================================
+
+### Variance Inflation Factor (multicollinearity)
+
+Another assumption for linear regression (really any regression model) is the assumption that the predictors are independent of one another. To check this, we can compute the VIF (variance inflation factors) for the predictors. Typically we want the VIFs < 10 and ideally want them < 5. I actually start to get worried about non-independence if the VIFs get much larger > than 2.
+
+```{r}
+# we want these values < 10 or < 5
+vif(lm1)
+```
+
+OPTIONAL - Also use `olsrr` package
+
+Even after reviewing the VIFs, it is also a good idea to check that the Condition Index (see line 4 of the Eigenvalues) is < 30. Was the condition index < 30 or not?
+
+```{r}
+library(olsrr)
+
+# get VIFs and Tolerances
+ols_vif_tol(lm1)
+
+# Get condition index
+ols_eigen_cindex(lm1)
+```
+
+=========================================
+
+HOMEWORK QUESTION #11: Based on the VIFs and condition index above, do any variables show up as possibly non-independent, i.e. is there significant multicollinearity?
+
+ANSWER TO QUESTION 11 HERE: 
+
+
+
+=========================================
