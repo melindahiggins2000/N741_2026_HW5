@@ -20,17 +20,35 @@ knitr::opts_chunk$set(echo = TRUE)
 knitr::opts_chunk$set(warning = FALSE)
 knitr::opts_chunk$set(message = FALSE)
 knitr::opts_chunk$set(error = TRUE)
+```
 
+## Linear Regression
+### EXAMPLE Analysis of **Gentoo** penguins
+
+Let's load the Penguins data from the `palmerpenguins` package. Go ahead and also load the `dplyr` and `ggplot2` packages as well. Other packages are also loaded in the R chunks below as needed.
+
+R Packages Used for this Example on Linear and Logistic Regression:
+
+* `palmerpenguins`
+* `dplyr`
+* `ggplot2`
+* `easystats`
+* `gtsummary`
+* `car`
+* `broom`
+* `olsrr`
+* `ROCR`
+* `DescTools`
+
+
+```{r packages}
 # load packages needed
 library(dplyr)
 library(palmerpenguins)
 library(ggplot2)
 ```
 
-## Linear Regression
-### EXAMPLE Analysis of **Gentoo** penguins
-
-Let's load the Penguins data. For this homework EXAMPLE, let's pull out the data for the **Gentoo** penguins, and we'll remove the `NA`'s here at the beginning for the penguins with missing body size measurements.
+For this homework EXAMPLE, let's pull out the data for the **Gentoo** penguins, and we'll remove the `NA`'s here at the beginning for the penguins with missing body size measurements.
 
 ```{r}
 pg1 <- penguins %>%
